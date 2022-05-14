@@ -1,3 +1,9 @@
+data_specifications/
+example_test_files/
+jpx_tokyo_market_prediction/
+supplemental_files/
+train_files/
+
 # History files
 .Rhistory
 .Rapp.history
