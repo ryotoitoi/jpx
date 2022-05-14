@@ -1,0 +1,191 @@
+---
+title: "Untitled"
+author: "ryotoitoi"
+date: '2022-05-14'
+output: html_document
+---
+
+# Library
+
+```{r}
+library(tidyverse)
+library(purrr)
+library(data.table)
+library(scales)
+library(patchwork)
+library(lemon)
+library(lubridate)
+library(magick)
+```
+
+# Data Files
+
+-   There seems to be "stock_list" file on the level above the training data.
+-   "stock_file" probably contains information on stocks in the Tokyo market.
+
+```{r}
+data_path = "../"
+train_path = paste0(data_path, "train_files/")
+cat("list of the top directory\n")
+list.files(data_path, full.names = T)
+
+cat("training data\n")
+list.files(train_path, full.names = T)
+```
+
+```{r}
+stock_list <- fread(
+  paste0(data_path, "stock_list.csv"),na.strings = c("","NULL")
+  )
+stock_list %>% head()
+stock_list %>% tail()
+
+cat(paste0(train_path, "stock_prices.csv"))
+stock_price <- fread(
+  paste0(train_path, "stock_prices.csv"), na.strings = c("", "NULL")
+)
+stock_price %>% head()
+
+financials <- fread(
+  paste0(train_path, "financials.csv"), na.strings = c("", "NULL")
+)
+financials %>% head()
+```
+
+# stock_list
+
+**This is assumed to be information on all issues in the Tokyo market.**
+
+I should check the columns name.
+
+```{r}
+stock_list %>% names()
+stock_list %>% str()
+```
+
+```{r}
+st1 <- names(stock_list)[str_detect(names(stock_list), "^[0-9]")] # detect col names which start with figure
+print(st1)
+st2 <- c("SectorCode_33", "SectorName_33", "SectorCode_17", "SectorCode_17")
+setnames(stock_list, st1, st2) # replace col name st1 to st2
+
+
+st1 <- names(stock_list)[str_detect(names(stock_list), "/")] %>% 
+  str_replace_all("/", "_")
+
+setnames(stock_list, names(stock_list)[str_detect(names(stock_list), "/")], st1)
+
+glimpse(stock_list)
+```
+
+```{r}
+?glimpse
+```
+
+## Generate the list of unique_values
+
+```{r}
+sapply(stock_list, function(x){length(unique(x))}) %>% 
+  data.table(colname = names(.), unique_values = .)
+```
+
+**A brief comparsion of old and new market segments.**
+
+```{r}
+stock_list[, n:= 1:.N, by= Section_Products]
+stock_list
+stock_list[n ==1] %>% 
+  select(Section_Products, NewMarketSegment) 
+```
+- The new segments(4/4/2022~) seems simpler and easier to understand.
+
+# Stock Price
+
+```{r}
+glimpse(stock_price)
+```
+
+- This appears to be a pure record of price movement.
+- What is "target" ?? 
+
+**How many stocks should we forecast?**
+
+```{r}
+stock_price %>% 
+  select(SecuritiesCode) %>% 
+  unique() %>% 
+  nrow()
+```
+
+- The forecast covers 2,000 stocks out of 4,417 stocks.
+
+## Date period
+```{r}
+stock_price %>% 
+  mutate(., Date = as.IDate(Date))
+
+range(stock_price$Date)
+```
+
+- All data are from the market classification (Section_Products).
+
+# financials
+```{r}
+glimpse(financials)
+```
+
+**Convert some strings into numerical.**
+**Corrects time data to iTime**
+
+
+```{r}
+cols <- names(financials)[c(13:36, 43:45)]
+financials[, (cols) := lapply(.SD, as.numeric), .SDcols = cols] # .SD is "Self-reference of the Data"
+financials$DisclosedTime <- as.ITime(financials$DisclosedTime)
+```
+
+```{r}
+glimpse(financials)
+```
+
+# Check for unique value and NA.
+
+```{r}
+df_tmp <- financials %>% 
+  sapply(function(x){length(unique(x))}) %>% 
+  data.table(feature = names(.), unique_values = .)
+
+df_tmp2 <- colSums(sapply(financials, is.na)) %>% 
+  data.table(feature = names(.), NAs = .)
+
+df_tmp
+df_tmp2
+
+cat("nrow = ", nrow(financials))
+
+df_tmp <- df_tmp %>% 
+  left_join(df_tmp2, by = "feature") %>% 
+  mutate(ColNo = row_number())
+df_tmp
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
