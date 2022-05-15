@@ -17,10 +17,25 @@ library(lemon)
 library(lubridate)
 library(magick)
 
+#ggplot setting
+theme_set(theme_minimal() +
+         theme(plot.title = element_text(size = 9, face = "bold"),
+               plot.subtitle = element_text(size  = 9, face = "bold"),
+               axis.text.x = element_text(size = 9),
+               axis.text.y = element_text(size = 9),
+               axis.title.x = element_text(size = 9),
+               axis.title.y = element_text(size = 9),
+               legend.text = element_text(size = 9),
+               legend.title = element_text(size = 9),
+               strip.text.x = element_text(size = 9)
+              )
+          )
+
 #Choose your favorite color
 mycol = c("turquoise", "lightslateblue","lightskyblue", 
           "chartreuse2", "palegreen2", "mistyrose2", "grey60", "hotpink1")
 ```
+
 
 # Data Files
 
@@ -189,13 +204,15 @@ We believe that earnings disclosure after 3:00 p.m. has a greater impact on pric
 For this reason, I will move the disclosure date by one day for earnings discoosures after 3:00 p.m.
 
 ```{r}
-financials %>% 
+financials <- financials %>% 
   mutate(
     DisclosedDate = if_else(
-      DisclosedTime>=as.ITime("15:00:00"), DisclosedDate + 1, DisclosedDate
+      DisclosedTime>=as.ITime("15:00:00"), 
+      DisclosedDate + 1, DisclosedDate
       )
     )
 ```
+
 
 **rename columns**
 ```{r}
@@ -203,6 +220,7 @@ financials %>%
   setnames(names(financials)[43], "NumberOfIssued")
 financials %>% names()
 ```
+
 
 **Consider missing value completion for ForecastEarningsPerShare.**
 I believe earnings per share can be obtained by dividing earnings by the number of shares outstanding.
@@ -244,8 +262,7 @@ financials %>%
 
 **Create Disclosed(1 or 0) when I combine them later.**
 ```{r}
-financials <- financials %>% 
-  mutate(disclosed = 1)
+financials[, disclosed := 1]
 financials %>% select(disclosed)
 ```
 
@@ -257,7 +274,7 @@ Let's combine the stock price data set with stock information and financial perf
 stock_list
 
 df_comb <- stock_price %>% 
-  left_join(stock_list %>% select(1,3:9), by = "SecuritiesCode") # conbine stock_price with stock_list
+  left_join(stock_list %>% select(1,3:9), by = "SecuritiesCode") # combine stock_price with stock_list
 ```
 
 ```{r}
@@ -269,14 +286,7 @@ df_comb <- df_comb %>%
 
 df_comb
 
-df_comb <- df_comb %>% 
-  mutate(
-    disclosed = if_else(
-    is.na(disclosed), 
-    0,
-    disclosed
-    )
-  )
+df_comb[is.na(disclosed), disclosed := 0]
 
 df_comb %>% head(10)
 ```
@@ -306,12 +316,184 @@ df_tmp %>%
 - It appears that about 90% of the current prime market and 20% of remaining market issues are covered.
 
 ```{r}
+options(repr.plot.width = 15, repr.plot.height = 8)
 
+df_stock_list_sector <- stock_list %>% 
+  group_by(SectorName_33, SecuritiesCode) %>% 
+  summarise(n = n()) %>% 
+  group_by(SectorName_33) %>% 
+  summarise(n = n()) %>% 
+  arrange(desc(n)) %>% 
+  ungroup()
+
+df_stock_list_sector
+
+g1 <- df_stock_list_sector %>% 
+  ggplot()+
+  geom_bar(
+    aes(x = reorder(SectorName_33, n), y = n), 
+    stat = "identity", 
+    fill = mycol[2], 
+    alpha = 0.5)+
+  coord_flip()+
+  labs(title = "Sector of the forecasted stocks", x = "")
+
+show(g1)
+
+df_stock_price_sector <- df_comb %>% 
+  group_by(SectorName_33, SecuritiesCode) %>% 
+  count() %>% 
+  group_by(SectorName_33) %>% 
+  count()
+
+g2 <- df_stock_price_sector %>% 
+  ggplot()+
+  geom_bar(
+    aes(x = reorder(SectorName_33, n), y = n),
+    stat = "identity",
+    fill = mycol[1],
+    alpha = 0.5
+ ) + 
+  coord_flip()+
+  labs(title = "Sector of the Tokyo Market stocks", x = "")
+
+g2
+```
+
+```{r}
+g1 / g2
+```
+
+- About half of the stocks in each sector appear to be set as forecast stocks. The "_" in the graph on the right is considered an index issue.
+
+```{r}
+range(df_comb$Date)
 ```
 
 
+```{r}
+sector_name_code_33 <- df_comb %>% 
+  group_by(SectorCode_33, SectorName_33) %>% 
+  count()
+
+sector_name_code_33 %>% 
+  arrange(desc(n))
+
+sector_name_code_17 <- df_comb %>% 
+  group_by(SectorCode_17, SectorName_17) %>% 
+  count()
+
+sector_name_code_17 %>% 
+  arrange(desc(n))
+```
+
+# Stock charts
+
+**Visialization is performed with a set of three charts.**
+- The upper chart shows the forecast earnings per share for current period, the middle chart shows the stock price, and the lower chart shows the Target.
+- The pink vertical line indicates the date of earnings disclosure.
+
+```{r}
+cat(as.POSIXct("2023-12-02"))
+```
 
 
+```{r}
+make_stock_chart <- function(code){
+    
+    df_tmp <- df_comb[SecuritiesCode == code]
+    disclosed_date <- as.POSIXct(df_tmp[disclosed == 1, Date])
+    
+    x_min <- "2017-02-01"
+    x_max <- "2021-11-30"
+    x_range <- c(as.POSIXct(x_min), as.POSIXct(x_max))
+    
+    TL <- paste0(df_tmp$SecuritiesCode[1], ":", 
+                 df_tmp$Name[1], ":", 
+                 df_tmp$NewMarketSegment[1])
+    
+    g1 <- 
+      df_tmp[!is.na(ForecastEarningsPerShare)] %>% 
+      mutate(DATE = as.POSIXct(Date)) %>%
+      ggplot(aes(x = DATE, y = ForecastEarningsPerShare))+
+      geom_point(alpha = 0.7)+
+      geom_line(color = "darkgray", alpha = 0.8)+
+      geom_vline(xintercept = disclosed_date, color = mycol[8], alpha = 0.5)+
+      scale_x_datetime(breaks = "2 months", date_labels = "%Y-%m", limits = x_range)+
+      theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+      labs(titles = TL, x = "")
+    
+    g2 <-
+      df_tmp[!is.na(Close)] %>% mutate(DATE = as.POSIXct(Date)) %>%
+      ggplot(aes(x = DATE, y = Close))+
+      geom_line(alpha = 0.7)+
+      geom_vline(xintercept = disclosed_date, linetype = "dashed",color = mycol[8], alpha = 0.7)+
+      scale_x_datetime(breaks = "2 months", date_labels = "%Y-%m", limits = x_range)+
+      theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+      labs(titles = TL, x = "")
+    
+    g3<-
+      df_tmp[SecuritiesCode == code][!is.na(Close)] %>% 
+      mutate(DATE = as.POSIXct(Date)) %>%
+      ggplot(aes(x = DATE, y = Target))+
+      geom_line(alpha = 0.7)+
+      geom_vline(xintercept = disclosed_date, color = mycol[8], alpha = 0.5)+
+      scale_x_datetime(breaks = "2 months", date_labels = "%Y-%m", limits = x_range)+
+      scale_y_continuous(breaks = seq(-0.2, 0.2, 0.04), limits = c(-0.16, 0.16))+
+      theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+      labs(titles = TL, x = "")
+    
+    return (g1/g2/g3 + plot_layout(height = c(2, 2, 4)))
+    
+}
+```
+
+```{r}
+make_stock_chart(2153)
+```
+
+```{r}
+
+df_tmp <- df_comb %>% 
+  filter(SecuritiesCode == 2153)
+
+disclosed_date <- as.POSIXct(df_tmp[disclosed == 1, Date])
+print(disclosed_date)
+
+x_min <- "2017-02-01"
+x_max <- "2021-11-30"
+x_range <- c(as.POSIXct(x_min), as.POSIXct(x_max))
+
+cat(x_range)
+
+TL <- paste0(df_tmp$SecuritiesCode[1], ":", 
+             df_tmp$Name[1], ":", 
+             df_tmp$NewMarketSegment[1])
+
+print(TL)
+
+g1 <- 
+  df_tmp[!is.na(ForecastEarningsPerShare)] %>% 
+  mutate(DATE = as.POSIXct(Date)) %>%
+  ggplot(aes(x = DATE, y = ForecastEarningsPerShare))+
+  geom_point(alpha = 0.7) + 
+  geom_line(color = "darkgray", alpha = 0.8) +
+  geom_vline(xintercept = disclosed_date, color = mycol[8], alpha = 0.5) + 
+  scale_x_datetime(breaks = "2 months", date_labels = "%Y-%m", limits = x_range) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+  labs(titles = TL, x = "")
+
+g2 <- 
+    df_tmp[!is.na(Close)] %>% mutate(DATE = as.POSIXct(Date)) %>%
+    ggplot(aes(x = DATE, y = Close))+
+    geom_line(alpha = 0.7)+
+    geom_vline(xintercept = disclosed_date, linetype = "dashed",color = mycol[8], alpha = 0.7)+
+    scale_x_datetime(breaks = "2 months", date_labels = "%Y-%m", limits = x_range)+
+    theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+    labs(titles = TL, x = "")
+
+show(g1 / g2)
+```
 
 
 
