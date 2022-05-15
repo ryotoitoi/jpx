@@ -382,7 +382,49 @@ pre code {
 <pre><code>## ── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
 ## x dplyr::filter() masks stats::filter()
 ## x dplyr::lag()    masks stats::lag()</code></pre>
-<pre class="r"><code>library(purrr)</code></pre>
+<pre class="r"><code>library(purrr)
+library(data.table)</code></pre>
+<pre><code>## 
+## Attaching package: &#39;data.table&#39;</code></pre>
+<pre><code>## The following objects are masked from &#39;package:dplyr&#39;:
+## 
+##     between, first, last</code></pre>
+<pre><code>## The following object is masked from &#39;package:purrr&#39;:
+## 
+##     transpose</code></pre>
+<pre class="r"><code>library(scales)</code></pre>
+<pre><code>## 
+## Attaching package: &#39;scales&#39;</code></pre>
+<pre><code>## The following object is masked from &#39;package:purrr&#39;:
+## 
+##     discard</code></pre>
+<pre><code>## The following object is masked from &#39;package:readr&#39;:
+## 
+##     col_factor</code></pre>
+<pre class="r"><code>library(patchwork)
+library(lemon)</code></pre>
+<pre><code>## 
+## Attaching package: &#39;lemon&#39;</code></pre>
+<pre><code>## The following object is masked from &#39;package:purrr&#39;:
+## 
+##     %||%</code></pre>
+<pre><code>## The following objects are masked from &#39;package:ggplot2&#39;:
+## 
+##     CoordCartesian, element_render</code></pre>
+<pre class="r"><code>library(lubridate)</code></pre>
+<pre><code>## 
+## Attaching package: &#39;lubridate&#39;</code></pre>
+<pre><code>## The following objects are masked from &#39;package:data.table&#39;:
+## 
+##     hour, isoweek, mday, minute, month, quarter, second, wday, week,
+##     yday, year</code></pre>
+<pre><code>## The following objects are masked from &#39;package:base&#39;:
+## 
+##     date, intersect, setdiff, union</code></pre>
+<pre class="r"><code>library(magick)</code></pre>
+<pre><code>## Linking to ImageMagick 6.9.12.3
+## Enabled features: cairo, fontconfig, freetype, heic, lcms, pango, raw, rsvg, webp
+## Disabled features: fftw, ghostscript, x11</code></pre>
 </div>
 <div id="data-files" class="section level1">
 <h1>Data Files</h1>
@@ -392,6 +434,978 @@ data.</li>
 <li>“stock_file” probably contains information on stocks in the Tokyo
 market.</li>
 </ul>
+<pre class="r"><code>data_path = &quot;../&quot;
+train_path = paste0(data_path, &quot;train_files/&quot;)
+cat(&quot;list of the top directory\n&quot;)</code></pre>
+<pre><code>## list of the top directory</code></pre>
+<pre class="r"><code>list.files(data_path, full.names = T)</code></pre>
+<pre><code>## [1] &quot;..//data_specifications&quot; &quot;..//eda&quot;                
+## [3] &quot;..//example_test_files&quot;  &quot;..//jpx.Rproj&quot;          
+## [5] &quot;..//README.md&quot;           &quot;..//stock_list.csv&quot;     
+## [7] &quot;..//supplemental_files&quot;  &quot;..//train_files&quot;</code></pre>
+<pre class="r"><code>cat(&quot;training data\n&quot;)</code></pre>
+<pre><code>## training data</code></pre>
+<pre class="r"><code>list.files(train_path, full.names = T)</code></pre>
+<pre><code>## [1] &quot;../train_files//financials.csv&quot;            
+## [2] &quot;../train_files//options.csv&quot;               
+## [3] &quot;../train_files//secondary_stock_prices.csv&quot;
+## [4] &quot;../train_files//stock_prices.csv&quot;          
+## [5] &quot;../train_files//trades.csv&quot;</code></pre>
+<pre class="r"><code>stock_list &lt;- fread(
+  paste0(data_path, &quot;stock_list.csv&quot;),na.strings = c(&quot;&quot;,&quot;NULL&quot;)
+  )
+stock_list %&gt;% head()</code></pre>
+<pre><code>##    SecuritiesCode EffectiveDate
+## 1:           1301      20211230
+## 2:           1305      20211230
+## 3:           1306      20211230
+## 4:           1308      20211230
+## 5:           1309      20211230
+## 6:           1311      20211230
+##                                                    Name
+## 1:                                     KYOKUYO CO.,LTD.
+## 2:                                      Daiwa ETF-TOPIX
+## 3:                NEXT FUNDS TOPIX Exchange Traded Fund
+## 4:               Nikko Exchange Traded Index Fund TOPIX
+## 5: NEXT FUNDS ChinaAMC SSE50 Index Exchange Traded Fund
+## 6:        NEXT FUNDS TOPIX Core 30 Exchange Traded Fund
+##            Section/Products NewMarketSegment 33SectorCode
+## 1: First Section (Domestic)     Prime Market           50
+## 2:               ETFs/ ETNs             &lt;NA&gt;            -
+## 3:               ETFs/ ETNs             &lt;NA&gt;            -
+## 4:               ETFs/ ETNs             &lt;NA&gt;            -
+## 5:               ETFs/ ETNs             &lt;NA&gt;            -
+## 6:               ETFs/ ETNs             &lt;NA&gt;            -
+##                         33SectorName 17SectorCode 17SectorName
+## 1: Fishery, Agriculture and Forestry            1        FOODS
+## 2:                                 -            -            -
+## 3:                                 -            -            -
+## 4:                                 -            -            -
+## 5:                                 -            -            -
+## 6:                                 -            -            -
+##    NewIndexSeriesSizeCode NewIndexSeriesSize TradeDate   Close IssuedShares
+## 1:                      7      TOPIX Small 2  20211230  3080.0     10928283
+## 2:                      -                  -  20211230  2097.0   3634635625
+## 3:                      -                  -  20211230  2073.5   7917718452
+## 4:                      -                  -  20211230  2053.0   3736943486
+## 5:                      -                  -  20211230 44280.0        72632
+## 6:                      -                  -  20211230  1025.0      1926421
+##    MarketCapitalization Universe0
+## 1:         3.365911e+10      TRUE
+## 2:         7.621831e+12     FALSE
+## 3:         1.641739e+13     FALSE
+## 4:         7.671945e+12     FALSE
+## 5:         3.216145e+09     FALSE
+## 6:         1.974582e+09     FALSE</code></pre>
+<pre class="r"><code>stock_list %&gt;% tail()</code></pre>
+<pre><code>##    SecuritiesCode EffectiveDate                                   Name
+## 1:           9993      20211230                      YAMAZAWA CO.,LTD.
+## 2:           9994      20211230                     YAMAYA CORPORATION
+## 3:           9995      20211230                        GLOSEL Co.,Ltd.
+## 4:           9996      20211230                         Satoh&amp;Co.,Ltd.
+## 5:           9997      20211230                       BELLUNA CO.,LTD.
+## 6:          25935      20211230 ITO EN,LTD.(shares of preferred stock)
+##               Section/Products NewMarketSegment 33SectorCode    33SectorName
+## 1:    First Section (Domestic)  Standard Market         6100    Retail Trade
+## 2:    First Section (Domestic)  Standard Market         6100    Retail Trade
+## 3:    First Section (Domestic)     Prime Market         6050 Wholesale Trade
+## 4: JASDAQ(Standard / Domestic)  Standard Market         6050 Wholesale Trade
+## 5:    First Section (Domestic)     Prime Market         6100    Retail Trade
+## 6:    First Section (Domestic)             &lt;NA&gt;         3050           Foods
+##    17SectorCode                 17SectorName NewIndexSeriesSizeCode
+## 1:           14                 RETAIL TRADE                      7
+## 2:           14                 RETAIL TRADE                      7
+## 3:           13 COMMERCIAL &amp; WHOLESALE TRADE                      7
+## 4:           13 COMMERCIAL &amp; WHOLESALE TRADE                      -
+## 5:           14                 RETAIL TRADE                      6
+## 6:            1                        FOODS                      -
+##    NewIndexSeriesSize TradeDate Close IssuedShares MarketCapitalization
+## 1:      TOPIX Small 2  20211230  1626     10960825          17822301450
+## 2:      TOPIX Small 2  20211230  2447     10847870          26544737890
+## 3:      TOPIX Small 2  20211230   410     26426800          10834988000
+## 4:                  -  20211230  1488      9152640          13619128320
+## 5:      TOPIX Small 1  20211230   709     97244472          68946330648
+## 6:                  -  20211230  1934     34246962          66233624508
+##    Universe0
+## 1:      TRUE
+## 2:      TRUE
+## 3:     FALSE
+## 4:     FALSE
+## 5:      TRUE
+## 6:     FALSE</code></pre>
+<pre class="r"><code>cat(paste0(train_path, &quot;stock_prices.csv&quot;))</code></pre>
+<pre><code>## ../train_files/stock_prices.csv</code></pre>
+<pre class="r"><code>stock_price &lt;- fread(
+  paste0(train_path, &quot;stock_prices.csv&quot;), na.strings = c(&quot;&quot;, &quot;NULL&quot;)
+)
+stock_price %&gt;% head()</code></pre>
+<pre><code>##            RowId       Date SecuritiesCode Open High  Low Close  Volume
+## 1: 20170104_1301 2017-01-04           1301 2734 2755 2730  2742   31400
+## 2: 20170104_1332 2017-01-04           1332  568  576  563   571 2798500
+## 3: 20170104_1333 2017-01-04           1333 3150 3210 3140  3210  270800
+## 4: 20170104_1376 2017-01-04           1376 1510 1550 1510  1550   11300
+## 5: 20170104_1377 2017-01-04           1377 3270 3350 3270  3330  150800
+## 6: 20170104_1379 2017-01-04           1379 2105 2147 2101  2143   77300
+##    AdjustmentFactor ExpectedDividend SupervisionFlag       Target
+## 1:                1               NA           FALSE 0.0007304602
+## 2:                1               NA           FALSE 0.0123239437
+## 3:                1               NA           FALSE 0.0061538462
+## 4:                1               NA           FALSE 0.0110533160
+## 5:                1               NA           FALSE 0.0030257186
+## 6:                1               NA           FALSE 0.0051691729</code></pre>
+<pre class="r"><code>financials &lt;- fread(
+  paste0(train_path, &quot;financials.csv&quot;), na.strings = c(&quot;&quot;, &quot;NULL&quot;)
+)
+financials %&gt;% head()</code></pre>
+<pre><code>##    DisclosureNumber      DateCode       Date SecuritiesCode DisclosedDate
+## 1:     2.016121e+13 20170104_2753 2017-01-04           2753    2017-01-04
+## 2:     2.017010e+13 20170104_3353 2017-01-04           3353    2017-01-04
+## 3:     2.016123e+13 20170104_4575 2017-01-04           4575    2017-01-04
+## 4:     2.017010e+13 20170105_2659 2017-01-05           2659    2017-01-05
+## 5:     2.017011e+13 20170105_3050 2017-01-05           3050    2017-01-05
+## 6:     2.016123e+13 20170105_3139 2017-01-05           3139    2017-01-05
+##    DisclosedTime DisclosedUnixTime                        TypeOfDocument
+## 1:      07:30:00        1483482600 3QFinancialStatements_Consolidated_JP
+## 2:      15:00:00        1483509600 3QFinancialStatements_Consolidated_JP
+## 3:      12:00:00        1483498800                      ForecastRevision
+## 4:      15:00:00        1483596000 3QFinancialStatements_Consolidated_JP
+## 5:      15:30:00        1483597800                      ForecastRevision
+## 6:      15:30:00        1483597800                      ForecastRevision
+##    CurrentPeriodEndDate TypeOfCurrentPeriod CurrentFiscalYearStartDate
+## 1:           2016-12-31                  3Q                 2016-04-01
+## 2:           2016-11-30                  3Q                 2016-03-01
+## 3:           2016-12-31                  2Q                 2016-07-01
+## 4:           2016-11-30                  3Q                 2016-03-01
+## 5:           2017-02-28                  FY                 2016-02-29
+## 6:           2016-11-30                  FY                 2015-12-01
+##    CurrentFiscalYearEndDate     NetSales OperatingProfit OrdinaryProfit
+## 1:               2017-03-31  22761000000      2147000000     2234000000
+## 2:               2017-02-28  22128000000       820000000      778000000
+## 3:               2017-06-30         &lt;NA&gt;            &lt;NA&gt;           &lt;NA&gt;
+## 4:               2017-02-28 134781000000     11248000000    11558000000
+## 5:               2017-02-28         &lt;NA&gt;            &lt;NA&gt;           &lt;NA&gt;
+## 6:               2016-11-30         &lt;NA&gt;            &lt;NA&gt;           &lt;NA&gt;
+##        Profit EarningsPerShare  TotalAssets       Equity EquityToAssetRatio
+## 1: 1494000000           218.23  22386000000  18295000000              0.817
+## 2:  629000000           328.57  25100000000   7566000000              0.301
+## 3:       &lt;NA&gt;             &lt;NA&gt;         &lt;NA&gt;         &lt;NA&gt;               &lt;NA&gt;
+## 4: 7171000000           224.35 128464000000 100905000000              0.765
+## 5:       &lt;NA&gt;             &lt;NA&gt;         &lt;NA&gt;         &lt;NA&gt;               &lt;NA&gt;
+## 6:       &lt;NA&gt;             &lt;NA&gt;         &lt;NA&gt;         &lt;NA&gt;               &lt;NA&gt;
+##    BookValuePerShare ResultDividendPerShare1stQuarter
+## 1:           2671.42                               －
+## 2:              &lt;NA&gt;                               －
+## 3:              &lt;NA&gt;                             &lt;NA&gt;
+## 4:           3073.12                               －
+## 5:              &lt;NA&gt;                             &lt;NA&gt;
+## 6:              &lt;NA&gt;                             &lt;NA&gt;
+##    ResultDividendPerShare2ndQuarter ResultDividendPerShare3rdQuarter
+## 1:                             50.0                               －
+## 2:                             36.0                               －
+## 3:                             &lt;NA&gt;                             &lt;NA&gt;
+## 4:                              0.0                               －
+## 5:                             &lt;NA&gt;                             &lt;NA&gt;
+## 6:                             &lt;NA&gt;                             &lt;NA&gt;
+##    ResultDividendPerShareFiscalYearEnd ResultDividendPerShareAnnual
+## 1:                                &lt;NA&gt;                         &lt;NA&gt;
+## 2:                                &lt;NA&gt;                         &lt;NA&gt;
+## 3:                                &lt;NA&gt;                         &lt;NA&gt;
+## 4:                                &lt;NA&gt;                         &lt;NA&gt;
+## 5:                                &lt;NA&gt;                         &lt;NA&gt;
+## 6:                                &lt;NA&gt;                         &lt;NA&gt;
+##    ForecastDividendPerShare1stQuarter ForecastDividendPerShare2ndQuarter
+## 1:                               &lt;NA&gt;                               &lt;NA&gt;
+## 2:                               &lt;NA&gt;                               &lt;NA&gt;
+## 3:                               &lt;NA&gt;                               &lt;NA&gt;
+## 4:                               &lt;NA&gt;                               &lt;NA&gt;
+## 5:                               &lt;NA&gt;                                 －
+## 6:                               &lt;NA&gt;                                 －
+##    ForecastDividendPerShare3rdQuarter ForecastDividendPerShareFiscalYearEnd
+## 1:                               &lt;NA&gt;                                  50.0
+## 2:                               &lt;NA&gt;                                  36.0
+## 3:                               &lt;NA&gt;                                  &lt;NA&gt;
+## 4:                               &lt;NA&gt;                                  42.0
+## 5:                                 －                                  13.0
+## 6:                                 －                                  32.0
+##    ForecastDividendPerShareAnnual ForecastNetSales ForecastOperatingProfit
+## 1:                          100.0      31800000000              3255000000
+## 2:                           72.0      30200000000              1350000000
+## 3:                           &lt;NA&gt;        110000000              -465000000
+## 4:                           42.0     177683000000             14168000000
+## 5:                           24.0             &lt;NA&gt;                    &lt;NA&gt;
+## 6:                           32.0      77508000000                      －
+##    ForecastOrdinaryProfit ForecastProfit ForecastEarningsPerShare
+## 1:             3300000000     2190000000                   319.76
+## 2:             1300000000      930000000                   485.36
+## 3:             -466000000     -467000000                   -93.11
+## 4:            14473000000     9111000000                   285.05
+## 5:                   &lt;NA&gt;           &lt;NA&gt;                     &lt;NA&gt;
+## 6:             1297000000      946000000                   173.43
+##    ApplyingOfSpecificAccountingOfTheQuarterlyFinancialStatements
+## 1:                                                            NA
+## 2:                                                            NA
+## 3:                                                            NA
+## 4:                                                            NA
+## 5:                                                            NA
+## 6:                                                            NA
+##    MaterialChangesInSubsidiaries ChangesBasedOnRevisionsOfAccountingStandard
+## 1:                         FALSE                                        TRUE
+## 2:                         FALSE                                        TRUE
+## 3:                            NA                                          NA
+## 4:                         FALSE                                        TRUE
+## 5:                            NA                                          NA
+## 6:                            NA                                          NA
+##    ChangesOtherThanOnesBasedOnRevisionsOfAccountingStandard
+## 1:                                                    FALSE
+## 2:                                                    FALSE
+## 3:                                                       NA
+## 4:                                                    FALSE
+## 5:                                                       NA
+## 6:                                                       NA
+##    ChangesInAccountingEstimates RetrospectiveRestatement
+## 1:                        FALSE                    FALSE
+## 2:                        FALSE                    FALSE
+## 3:                           NA                       NA
+## 4:                        FALSE                    FALSE
+## 5:                           NA                       NA
+## 6:                           NA                       NA
+##    NumberOfIssuedAndOutstandingSharesAtTheEndOfFiscalYearIncludingTreasuryStock
+## 1:                                                                      6848800
+## 2:                                                                      2035000
+## 3:                                                                         &lt;NA&gt;
+## 4:                                                                     31981654
+## 5:                                                                         &lt;NA&gt;
+## 6:                                                                         &lt;NA&gt;
+##    NumberOfTreasuryStockAtTheEndOfFiscalYear AverageNumberOfShares
+## 1:                                        －               6848800
+## 2:                                    118917               1916083
+## 3:                                      &lt;NA&gt;                  &lt;NA&gt;
+## 4:                                     18257              31963405
+## 5:                                      &lt;NA&gt;                  &lt;NA&gt;
+## 6:                                      &lt;NA&gt;                  &lt;NA&gt;</code></pre>
+</div>
+<div id="stock_list" class="section level1">
+<h1>stock_list</h1>
+<p><strong>This is assumed to be information on all issues in the Tokyo
+market.</strong></p>
+<p>I should check the columns name.</p>
+<pre class="r"><code>stock_list %&gt;% names()</code></pre>
+<pre><code>##  [1] &quot;SecuritiesCode&quot;         &quot;EffectiveDate&quot;          &quot;Name&quot;                  
+##  [4] &quot;Section/Products&quot;       &quot;NewMarketSegment&quot;       &quot;33SectorCode&quot;          
+##  [7] &quot;33SectorName&quot;           &quot;17SectorCode&quot;           &quot;17SectorName&quot;          
+## [10] &quot;NewIndexSeriesSizeCode&quot; &quot;NewIndexSeriesSize&quot;     &quot;TradeDate&quot;             
+## [13] &quot;Close&quot;                  &quot;IssuedShares&quot;           &quot;MarketCapitalization&quot;  
+## [16] &quot;Universe0&quot;</code></pre>
+<pre class="r"><code>stock_list %&gt;% str()</code></pre>
+<pre><code>## Classes &#39;data.table&#39; and &#39;data.frame&#39;:   4417 obs. of  16 variables:
+##  $ SecuritiesCode        : int  1301 1305 1306 1308 1309 1311 1312 1313 1319 1320 ...
+##  $ EffectiveDate         : int  20211230 20211230 20211230 20211230 20211230 20211230 20211230 20211230 20211230 20211230 ...
+##  $ Name                  : chr  &quot;KYOKUYO CO.,LTD.&quot; &quot;Daiwa ETF-TOPIX&quot; &quot;NEXT FUNDS TOPIX Exchange Traded Fund&quot; &quot;Nikko Exchange Traded Index Fund TOPIX&quot; ...
+##  $ Section/Products      : chr  &quot;First Section (Domestic)&quot; &quot;ETFs/ ETNs&quot; &quot;ETFs/ ETNs&quot; &quot;ETFs/ ETNs&quot; ...
+##  $ NewMarketSegment      : chr  &quot;Prime Market&quot; NA NA NA ...
+##  $ 33SectorCode          : chr  &quot;50&quot; &quot;-&quot; &quot;-&quot; &quot;-&quot; ...
+##  $ 33SectorName          : chr  &quot;Fishery, Agriculture and Forestry&quot; &quot;-&quot; &quot;-&quot; &quot;-&quot; ...
+##  $ 17SectorCode          : chr  &quot;1&quot; &quot;-&quot; &quot;-&quot; &quot;-&quot; ...
+##  $ 17SectorName          : chr  &quot;FOODS&quot; &quot;-&quot; &quot;-&quot; &quot;-&quot; ...
+##  $ NewIndexSeriesSizeCode: chr  &quot;7&quot; &quot;-&quot; &quot;-&quot; &quot;-&quot; ...
+##  $ NewIndexSeriesSize    : chr  &quot;TOPIX Small 2&quot; &quot;-&quot; &quot;-&quot; &quot;-&quot; ...
+##  $ TradeDate             : num  20211230 20211230 20211230 20211230 20211230 ...
+##  $ Close                 : num  3080 2097 2074 2053 44280 ...
+##  $ IssuedShares          : num  1.09e+07 3.63e+09 7.92e+09 3.74e+09 7.26e+04 ...
+##  $ MarketCapitalization  : num  3.37e+10 7.62e+12 1.64e+13 7.67e+12 3.22e+09 ...
+##  $ Universe0             : logi  TRUE FALSE FALSE FALSE FALSE FALSE ...
+##  - attr(*, &quot;.internal.selfref&quot;)=&lt;externalptr&gt;</code></pre>
+<pre class="r"><code>st1 &lt;- names(stock_list)[str_detect(names(stock_list), &quot;^[0-9]&quot;)] # detect col names which start with figure
+print(st1)</code></pre>
+<pre><code>## [1] &quot;33SectorCode&quot; &quot;33SectorName&quot; &quot;17SectorCode&quot; &quot;17SectorName&quot;</code></pre>
+<pre class="r"><code>st2 &lt;- c(&quot;SectorCode_33&quot;, &quot;SectorName_33&quot;, &quot;SectorCode_17&quot;, &quot;SectorCode_17&quot;)
+setnames(stock_list, st1, st2) # replace col name st1 to st2
+
+
+st1 &lt;- names(stock_list)[str_detect(names(stock_list), &quot;/&quot;)] %&gt;% 
+  str_replace_all(&quot;/&quot;, &quot;_&quot;)
+
+setnames(stock_list, names(stock_list)[str_detect(names(stock_list), &quot;/&quot;)], st1)
+
+glimpse(stock_list)</code></pre>
+<pre><code>## Rows: 4,417
+## Columns: 16
+## $ SecuritiesCode         &lt;int&gt; 1301, 1305, 1306, 1308, 1309, 1311, 1312, 1313,…
+## $ EffectiveDate          &lt;int&gt; 20211230, 20211230, 20211230, 20211230, 2021123…
+## $ Name                   &lt;chr&gt; &quot;KYOKUYO CO.,LTD.&quot;, &quot;Daiwa ETF-TOPIX&quot;, &quot;NEXT FU…
+## $ Section_Products       &lt;chr&gt; &quot;First Section (Domestic)&quot;, &quot;ETFs/ ETNs&quot;, &quot;ETFs…
+## $ NewMarketSegment       &lt;chr&gt; &quot;Prime Market&quot;, NA, NA, NA, NA, NA, NA, NA, NA,…
+## $ SectorCode_33          &lt;chr&gt; &quot;50&quot;, &quot;-&quot;, &quot;-&quot;, &quot;-&quot;, &quot;-&quot;, &quot;-&quot;, &quot;-&quot;, &quot;-&quot;, &quot;-&quot;, &quot;…
+## $ SectorName_33          &lt;chr&gt; &quot;Fishery, Agriculture and Forestry&quot;, &quot;-&quot;, &quot;-&quot;, …
+## $ SectorCode_17          &lt;chr&gt; &quot;1&quot;, &quot;-&quot;, &quot;-&quot;, &quot;-&quot;, &quot;-&quot;, &quot;-&quot;, &quot;-&quot;, &quot;-&quot;, &quot;-&quot;, &quot;-…
+## $ SectorCode_17          &lt;chr&gt; &quot;FOODS&quot;, &quot;-&quot;, &quot;-&quot;, &quot;-&quot;, &quot;-&quot;, &quot;-&quot;, &quot;-&quot;, &quot;-&quot;, &quot;-&quot;…
+## $ NewIndexSeriesSizeCode &lt;chr&gt; &quot;7&quot;, &quot;-&quot;, &quot;-&quot;, &quot;-&quot;, &quot;-&quot;, &quot;-&quot;, &quot;-&quot;, &quot;-&quot;, &quot;-&quot;, &quot;-…
+## $ NewIndexSeriesSize     &lt;chr&gt; &quot;TOPIX Small 2&quot;, &quot;-&quot;, &quot;-&quot;, &quot;-&quot;, &quot;-&quot;, &quot;-&quot;, &quot;-&quot;, …
+## $ TradeDate              &lt;dbl&gt; 20211230, 20211230, 20211230, 20211230, 2021123…
+## $ Close                  &lt;dbl&gt; 3080.0, 2097.0, 2073.5, 2053.0, 44280.0, 1025.0…
+## $ IssuedShares           &lt;dbl&gt; 10928283, 3634635625, 7917718452, 3736943486, 7…
+## $ MarketCapitalization   &lt;dbl&gt; 3.365911e+10, 7.621831e+12, 1.641739e+13, 7.671…
+## $ Universe0              &lt;lgl&gt; TRUE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE,…</code></pre>
+<pre class="r"><code>?glimpse</code></pre>
+<pre><code>## Help on topic &#39;glimpse&#39; was found in the following packages:
+## 
+##   Package               Library
+##   pillar                /Library/Frameworks/R.framework/Versions/4.1/Resources/library
+##   dplyr                 /Library/Frameworks/R.framework/Versions/4.1/Resources/library
+##   tibble                /Library/Frameworks/R.framework/Versions/4.1/Resources/library
+## 
+## 
+## Using the first match ...</code></pre>
+<div id="generate-the-list-of-unique_values" class="section level2">
+<h2>Generate the list of unique_values</h2>
+<pre class="r"><code>sapply(stock_list, function(x){length(unique(x))}) %&gt;% 
+  data.table(colname = names(.), unique_values = .)</code></pre>
+<pre><code>##                    colname unique_values
+##  1:         SecuritiesCode          4417
+##  2:          EffectiveDate            10
+##  3:                   Name          4411
+##  4:       Section_Products            11
+##  5:       NewMarketSegment             7
+##  6:          SectorCode_33            34
+##  7:          SectorName_33            34
+##  8:          SectorCode_17            18
+##  9:          SectorCode_17            19
+## 10: NewIndexSeriesSizeCode             6
+## 11:     NewIndexSeriesSize             6
+## 12:              TradeDate            11
+## 13:                  Close          2567
+## 14:           IssuedShares          4012
+## 15:   MarketCapitalization          4122
+## 16:              Universe0             2</code></pre>
+<p><strong>A brief comparsion of old and new market
+segments.</strong></p>
+<pre class="r"><code>stock_list[, n:= 1:.N, by= Section_Products]
+stock_list</code></pre>
+<pre><code>##       SecuritiesCode EffectiveDate
+##    1:           1301      20211230
+##    2:           1305      20211230
+##    3:           1306      20211230
+##    4:           1308      20211230
+##    5:           1309      20211230
+##   ---                             
+## 4413:           9994      20211230
+## 4414:           9995      20211230
+## 4415:           9996      20211230
+## 4416:           9997      20211230
+## 4417:          25935      20211230
+##                                                       Name
+##    1:                                     KYOKUYO CO.,LTD.
+##    2:                                      Daiwa ETF-TOPIX
+##    3:                NEXT FUNDS TOPIX Exchange Traded Fund
+##    4:               Nikko Exchange Traded Index Fund TOPIX
+##    5: NEXT FUNDS ChinaAMC SSE50 Index Exchange Traded Fund
+##   ---                                                     
+## 4413:                                   YAMAYA CORPORATION
+## 4414:                                      GLOSEL Co.,Ltd.
+## 4415:                                       Satoh&amp;Co.,Ltd.
+## 4416:                                     BELLUNA CO.,LTD.
+## 4417:               ITO EN,LTD.(shares of preferred stock)
+##                  Section_Products NewMarketSegment SectorCode_33
+##    1:    First Section (Domestic)     Prime Market            50
+##    2:                  ETFs/ ETNs             &lt;NA&gt;             -
+##    3:                  ETFs/ ETNs             &lt;NA&gt;             -
+##    4:                  ETFs/ ETNs             &lt;NA&gt;             -
+##    5:                  ETFs/ ETNs             &lt;NA&gt;             -
+##   ---                                                           
+## 4413:    First Section (Domestic)  Standard Market          6100
+## 4414:    First Section (Domestic)     Prime Market          6050
+## 4415: JASDAQ(Standard / Domestic)  Standard Market          6050
+## 4416:    First Section (Domestic)     Prime Market          6100
+## 4417:    First Section (Domestic)             &lt;NA&gt;          3050
+##                           SectorName_33 SectorCode_17
+##    1: Fishery, Agriculture and Forestry             1
+##    2:                                 -             -
+##    3:                                 -             -
+##    4:                                 -             -
+##    5:                                 -             -
+##   ---                                                
+## 4413:                      Retail Trade            14
+## 4414:                   Wholesale Trade            13
+## 4415:                   Wholesale Trade            13
+## 4416:                      Retail Trade            14
+## 4417:                             Foods             1
+##                      SectorCode_17 NewIndexSeriesSizeCode NewIndexSeriesSize
+##    1:                        FOODS                      7      TOPIX Small 2
+##    2:                            -                      -                  -
+##    3:                            -                      -                  -
+##    4:                            -                      -                  -
+##    5:                            -                      -                  -
+##   ---                                                                       
+## 4413:                 RETAIL TRADE                      7      TOPIX Small 2
+## 4414: COMMERCIAL &amp; WHOLESALE TRADE                      7      TOPIX Small 2
+## 4415: COMMERCIAL &amp; WHOLESALE TRADE                      -                  -
+## 4416:                 RETAIL TRADE                      6      TOPIX Small 1
+## 4417:                        FOODS                      -                  -
+##       TradeDate   Close IssuedShares MarketCapitalization Universe0    n
+##    1:  20211230  3080.0     10928283         3.365911e+10      TRUE    1
+##    2:  20211230  2097.0   3634635625         7.621831e+12     FALSE    1
+##    3:  20211230  2073.5   7917718452         1.641739e+13     FALSE    2
+##    4:  20211230  2053.0   3736943486         7.671945e+12     FALSE    3
+##    5:  20211230 44280.0        72632         3.216145e+09     FALSE    4
+##   ---                                                                   
+## 4413:  20211230  2447.0     10847870         2.654474e+10      TRUE 2324
+## 4414:  20211230   410.0     26426800         1.083499e+10     FALSE 2325
+## 4415:  20211230  1488.0      9152640         1.361913e+10     FALSE  726
+## 4416:  20211230   709.0     97244472         6.894633e+10      TRUE 2326
+## 4417:  20211230  1934.0     34246962         6.623362e+10     FALSE 2327</code></pre>
+<pre class="r"><code>stock_list[n ==1] %&gt;% 
+  select(Section_Products, NewMarketSegment) </code></pre>
+<pre><code>##                                                Section_Products
+##  1:                                    First Section (Domestic)
+##  2:                                                  ETFs/ ETNs
+##  3:                                 JASDAQ(Standard / Domestic)
+##  4:                                     JASDAQ(Growth/Domestic)
+##  5:                                          Mothers (Domestic)
+##  6:                                    Second Section(Domestic)
+##  7:                                     First Section (Foreign)
+##  8: REIT, Venture Funds, Country Funds and Infrastructure Funds
+##  9:                                  JASDAQ(Standard / Foreign)
+## 10:                                           Mothers (Foreign)
+## 11:                                     Second Section(Foreign)
+##                    NewMarketSegment
+##  1:                    Prime Market
+##  2:                            &lt;NA&gt;
+##  3:                 Standard Market
+##  4:                   Growth Market
+##  5:                   Growth Market
+##  6:                 Standard Market
+##  7:    Prime Market (Foreign Stock)
+##  8:                            &lt;NA&gt;
+##  9: Standard Market (Foreign Stock)
+## 10:   Growth Market (Foreign Stock)
+## 11: Standard Market (Foreign Stock)</code></pre>
+<ul>
+<li>The new segments(4/4/2022~) seems simpler and easier to
+understand.</li>
+</ul>
+</div>
+</div>
+<div id="stock-price" class="section level1">
+<h1>Stock Price</h1>
+<pre class="r"><code>glimpse(stock_price)</code></pre>
+<pre><code>## Rows: 2,332,531
+## Columns: 12
+## $ RowId            &lt;chr&gt; &quot;20170104_1301&quot;, &quot;20170104_1332&quot;, &quot;20170104_1333&quot;, &quot;2…
+## $ Date             &lt;date&gt; 2017-01-04, 2017-01-04, 2017-01-04, 2017-01-04, 2017…
+## $ SecuritiesCode   &lt;int&gt; 1301, 1332, 1333, 1376, 1377, 1379, 1381, 1407, 1414,…
+## $ Open             &lt;dbl&gt; 2734.0, 568.0, 3150.0, 1510.0, 3270.0, 2105.0, 1950.0…
+## $ High             &lt;dbl&gt; 2755, 576, 3210, 1550, 3350, 2147, 1960, 877, 5060, 1…
+## $ Low              &lt;dbl&gt; 2730, 563, 3140, 1510, 3270, 2101, 1949, 851, 4935, 1…
+## $ Close            &lt;dbl&gt; 2742, 571, 3210, 1550, 3330, 2143, 1960, 866, 5050, 1…
+## $ Volume           &lt;int&gt; 31400, 2798500, 270800, 11300, 150800, 77300, 1300, 1…
+## $ AdjustmentFactor &lt;dbl&gt; 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,…
+## $ ExpectedDividend &lt;dbl&gt; NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, N…
+## $ SupervisionFlag  &lt;lgl&gt; FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALS…
+## $ Target           &lt;dbl&gt; 0.0007304602, 0.0123239437, 0.0061538462, 0.011053316…</code></pre>
+<ul>
+<li>This appears to be a pure record of price movement.</li>
+<li>What is “target” ??</li>
+</ul>
+<p><strong>How many stocks should we forecast?</strong></p>
+<pre class="r"><code>stock_price %&gt;% 
+  select(SecuritiesCode) %&gt;% 
+  unique() %&gt;% 
+  nrow()</code></pre>
+<pre><code>## [1] 2000</code></pre>
+<ul>
+<li>The forecast covers 2,000 stocks out of 4,417 stocks.</li>
+</ul>
+<div id="date-period" class="section level2">
+<h2>Date period</h2>
+<pre class="r"><code>stock_price %&gt;% 
+  mutate(., Date = as.IDate(Date))</code></pre>
+<pre><code>##                  RowId       Date SecuritiesCode Open High  Low Close  Volume
+##       1: 20170104_1301 2017-01-04           1301 2734 2755 2730  2742   31400
+##       2: 20170104_1332 2017-01-04           1332  568  576  563   571 2798500
+##       3: 20170104_1333 2017-01-04           1333 3150 3210 3140  3210  270800
+##       4: 20170104_1376 2017-01-04           1376 1510 1550 1510  1550   11300
+##       5: 20170104_1377 2017-01-04           1377 3270 3350 3270  3330  150800
+##      ---                                                                     
+## 2332527: 20211203_9990 2021-12-03           9990  514  528  513   528   44200
+## 2332528: 20211203_9991 2021-12-03           9991  782  794  782   794   35900
+## 2332529: 20211203_9993 2021-12-03           9993 1690 1690 1645  1645    7200
+## 2332530: 20211203_9994 2021-12-03           9994 2388 2396 2380  2389    6500
+## 2332531: 20211203_9997 2021-12-03           9997  690  711  686   696  381100
+##          AdjustmentFactor ExpectedDividend SupervisionFlag        Target
+##       1:                1               NA           FALSE  0.0007304602
+##       2:                1               NA           FALSE  0.0123239437
+##       3:                1               NA           FALSE  0.0061538462
+##       4:                1               NA           FALSE  0.0110533160
+##       5:                1               NA           FALSE  0.0030257186
+##      ---                                                                
+## 2332527:                1               NA           FALSE  0.0348162476
+## 2332528:                1               NA           FALSE  0.0254777070
+## 2332529:                1               NA           FALSE -0.0043023970
+## 2332530:                1               NA           FALSE  0.0090984285
+## 2332531:                1               NA           FALSE  0.0184135977</code></pre>
+<pre class="r"><code>range(stock_price$Date)</code></pre>
+<pre><code>## [1] &quot;2017-01-04&quot; &quot;2021-12-03&quot;</code></pre>
+<ul>
+<li>All data are from the market classification (Section_Products).</li>
+</ul>
+</div>
+</div>
+<div id="financials" class="section level1">
+<h1>financials</h1>
+<pre class="r"><code>glimpse(financials)</code></pre>
+<pre><code>## Rows: 92,956
+## Columns: 45
+## $ DisclosureNumber                                                             &lt;dbl&gt; …
+## $ DateCode                                                                     &lt;chr&gt; …
+## $ Date                                                                         &lt;date&gt; …
+## $ SecuritiesCode                                                               &lt;dbl&gt; …
+## $ DisclosedDate                                                                &lt;date&gt; …
+## $ DisclosedTime                                                                &lt;chr&gt; …
+## $ DisclosedUnixTime                                                            &lt;dbl&gt; …
+## $ TypeOfDocument                                                               &lt;chr&gt; …
+## $ CurrentPeriodEndDate                                                         &lt;date&gt; …
+## $ TypeOfCurrentPeriod                                                          &lt;chr&gt; …
+## $ CurrentFiscalYearStartDate                                                   &lt;date&gt; …
+## $ CurrentFiscalYearEndDate                                                     &lt;date&gt; …
+## $ NetSales                                                                     &lt;chr&gt; …
+## $ OperatingProfit                                                              &lt;chr&gt; …
+## $ OrdinaryProfit                                                               &lt;chr&gt; …
+## $ Profit                                                                       &lt;chr&gt; …
+## $ EarningsPerShare                                                             &lt;chr&gt; …
+## $ TotalAssets                                                                  &lt;chr&gt; …
+## $ Equity                                                                       &lt;chr&gt; …
+## $ EquityToAssetRatio                                                           &lt;chr&gt; …
+## $ BookValuePerShare                                                            &lt;chr&gt; …
+## $ ResultDividendPerShare1stQuarter                                             &lt;chr&gt; …
+## $ ResultDividendPerShare2ndQuarter                                             &lt;chr&gt; …
+## $ ResultDividendPerShare3rdQuarter                                             &lt;chr&gt; …
+## $ ResultDividendPerShareFiscalYearEnd                                          &lt;chr&gt; …
+## $ ResultDividendPerShareAnnual                                                 &lt;chr&gt; …
+## $ ForecastDividendPerShare1stQuarter                                           &lt;chr&gt; …
+## $ ForecastDividendPerShare2ndQuarter                                           &lt;chr&gt; …
+## $ ForecastDividendPerShare3rdQuarter                                           &lt;chr&gt; …
+## $ ForecastDividendPerShareFiscalYearEnd                                        &lt;chr&gt; …
+## $ ForecastDividendPerShareAnnual                                               &lt;chr&gt; …
+## $ ForecastNetSales                                                             &lt;chr&gt; …
+## $ ForecastOperatingProfit                                                      &lt;chr&gt; …
+## $ ForecastOrdinaryProfit                                                       &lt;chr&gt; …
+## $ ForecastProfit                                                               &lt;chr&gt; …
+## $ ForecastEarningsPerShare                                                     &lt;chr&gt; …
+## $ ApplyingOfSpecificAccountingOfTheQuarterlyFinancialStatements                &lt;lgl&gt; …
+## $ MaterialChangesInSubsidiaries                                                &lt;lgl&gt; …
+## $ ChangesBasedOnRevisionsOfAccountingStandard                                  &lt;lgl&gt; …
+## $ ChangesOtherThanOnesBasedOnRevisionsOfAccountingStandard                     &lt;lgl&gt; …
+## $ ChangesInAccountingEstimates                                                 &lt;lgl&gt; …
+## $ RetrospectiveRestatement                                                     &lt;lgl&gt; …
+## $ NumberOfIssuedAndOutstandingSharesAtTheEndOfFiscalYearIncludingTreasuryStock &lt;chr&gt; …
+## $ NumberOfTreasuryStockAtTheEndOfFiscalYear                                    &lt;chr&gt; …
+## $ AverageNumberOfShares                                                        &lt;chr&gt; …</code></pre>
+<p><strong>Convert some strings into numerical.</strong>
+<strong>Corrects time data to iTime</strong></p>
+<pre class="r"><code>cols &lt;- names(financials)[c(13:36, 43:45)]
+financials[, (cols) := lapply(.SD, as.numeric), .SDcols = cols] # .SD is &quot;Self-reference of the Data&quot;</code></pre>
+<pre><code>## Warning in lapply(.SD, as.numeric): NAs introduced by coercion
+
+## Warning in lapply(.SD, as.numeric): NAs introduced by coercion
+
+## Warning in lapply(.SD, as.numeric): NAs introduced by coercion
+
+## Warning in lapply(.SD, as.numeric): NAs introduced by coercion
+
+## Warning in lapply(.SD, as.numeric): NAs introduced by coercion
+
+## Warning in lapply(.SD, as.numeric): NAs introduced by coercion
+
+## Warning in lapply(.SD, as.numeric): NAs introduced by coercion
+
+## Warning in lapply(.SD, as.numeric): NAs introduced by coercion
+
+## Warning in lapply(.SD, as.numeric): NAs introduced by coercion
+
+## Warning in lapply(.SD, as.numeric): NAs introduced by coercion
+
+## Warning in lapply(.SD, as.numeric): NAs introduced by coercion
+
+## Warning in lapply(.SD, as.numeric): NAs introduced by coercion
+
+## Warning in lapply(.SD, as.numeric): NAs introduced by coercion
+
+## Warning in lapply(.SD, as.numeric): NAs introduced by coercion
+
+## Warning in lapply(.SD, as.numeric): NAs introduced by coercion
+
+## Warning in lapply(.SD, as.numeric): NAs introduced by coercion
+
+## Warning in lapply(.SD, as.numeric): NAs introduced by coercion
+
+## Warning in lapply(.SD, as.numeric): NAs introduced by coercion
+
+## Warning in lapply(.SD, as.numeric): NAs introduced by coercion
+
+## Warning in lapply(.SD, as.numeric): NAs introduced by coercion
+
+## Warning in lapply(.SD, as.numeric): NAs introduced by coercion
+
+## Warning in lapply(.SD, as.numeric): NAs introduced by coercion
+
+## Warning in lapply(.SD, as.numeric): NAs introduced by coercion
+
+## Warning in lapply(.SD, as.numeric): NAs introduced by coercion
+
+## Warning in lapply(.SD, as.numeric): NAs introduced by coercion
+
+## Warning in lapply(.SD, as.numeric): NAs introduced by coercion
+
+## Warning in lapply(.SD, as.numeric): NAs introduced by coercion</code></pre>
+<pre class="r"><code>financials$DisclosedTime &lt;- as.ITime(financials$DisclosedTime)</code></pre>
+<pre class="r"><code>glimpse(financials)</code></pre>
+<pre><code>## Rows: 92,956
+## Columns: 45
+## $ DisclosureNumber                                                             &lt;dbl&gt; …
+## $ DateCode                                                                     &lt;chr&gt; …
+## $ Date                                                                         &lt;date&gt; …
+## $ SecuritiesCode                                                               &lt;dbl&gt; …
+## $ DisclosedDate                                                                &lt;date&gt; …
+## $ DisclosedTime                                                                &lt;ITime&gt; …
+## $ DisclosedUnixTime                                                            &lt;dbl&gt; …
+## $ TypeOfDocument                                                               &lt;chr&gt; …
+## $ CurrentPeriodEndDate                                                         &lt;date&gt; …
+## $ TypeOfCurrentPeriod                                                          &lt;chr&gt; …
+## $ CurrentFiscalYearStartDate                                                   &lt;date&gt; …
+## $ CurrentFiscalYearEndDate                                                     &lt;date&gt; …
+## $ NetSales                                                                     &lt;dbl&gt; …
+## $ OperatingProfit                                                              &lt;dbl&gt; …
+## $ OrdinaryProfit                                                               &lt;dbl&gt; …
+## $ Profit                                                                       &lt;dbl&gt; …
+## $ EarningsPerShare                                                             &lt;dbl&gt; …
+## $ TotalAssets                                                                  &lt;dbl&gt; …
+## $ Equity                                                                       &lt;dbl&gt; …
+## $ EquityToAssetRatio                                                           &lt;dbl&gt; …
+## $ BookValuePerShare                                                            &lt;dbl&gt; …
+## $ ResultDividendPerShare1stQuarter                                             &lt;dbl&gt; …
+## $ ResultDividendPerShare2ndQuarter                                             &lt;dbl&gt; …
+## $ ResultDividendPerShare3rdQuarter                                             &lt;dbl&gt; …
+## $ ResultDividendPerShareFiscalYearEnd                                          &lt;dbl&gt; …
+## $ ResultDividendPerShareAnnual                                                 &lt;dbl&gt; …
+## $ ForecastDividendPerShare1stQuarter                                           &lt;dbl&gt; …
+## $ ForecastDividendPerShare2ndQuarter                                           &lt;dbl&gt; …
+## $ ForecastDividendPerShare3rdQuarter                                           &lt;dbl&gt; …
+## $ ForecastDividendPerShareFiscalYearEnd                                        &lt;dbl&gt; …
+## $ ForecastDividendPerShareAnnual                                               &lt;dbl&gt; …
+## $ ForecastNetSales                                                             &lt;dbl&gt; …
+## $ ForecastOperatingProfit                                                      &lt;dbl&gt; …
+## $ ForecastOrdinaryProfit                                                       &lt;dbl&gt; …
+## $ ForecastProfit                                                               &lt;dbl&gt; …
+## $ ForecastEarningsPerShare                                                     &lt;dbl&gt; …
+## $ ApplyingOfSpecificAccountingOfTheQuarterlyFinancialStatements                &lt;lgl&gt; …
+## $ MaterialChangesInSubsidiaries                                                &lt;lgl&gt; …
+## $ ChangesBasedOnRevisionsOfAccountingStandard                                  &lt;lgl&gt; …
+## $ ChangesOtherThanOnesBasedOnRevisionsOfAccountingStandard                     &lt;lgl&gt; …
+## $ ChangesInAccountingEstimates                                                 &lt;lgl&gt; …
+## $ RetrospectiveRestatement                                                     &lt;lgl&gt; …
+## $ NumberOfIssuedAndOutstandingSharesAtTheEndOfFiscalYearIncludingTreasuryStock &lt;dbl&gt; …
+## $ NumberOfTreasuryStockAtTheEndOfFiscalYear                                    &lt;dbl&gt; …
+## $ AverageNumberOfShares                                                        &lt;dbl&gt; …</code></pre>
+</div>
+<div id="check-for-unique-value-and-na." class="section level1">
+<h1>Check for unique value and NA.</h1>
+<pre class="r"><code>df_tmp &lt;- financials %&gt;% 
+  sapply(function(x){length(unique(x))}) %&gt;% 
+  data.table(feature = names(.), unique_values = .)
+
+df_tmp2 &lt;- colSums(sapply(financials, is.na)) %&gt;% 
+  data.table(feature = names(.), NAs = .)
+
+df_tmp</code></pre>
+<pre><code>##                                                                          feature
+##  1:                                                             DisclosureNumber
+##  2:                                                                     DateCode
+##  3:                                                                         Date
+##  4:                                                               SecuritiesCode
+##  5:                                                                DisclosedDate
+##  6:                                                                DisclosedTime
+##  7:                                                            DisclosedUnixTime
+##  8:                                                               TypeOfDocument
+##  9:                                                         CurrentPeriodEndDate
+## 10:                                                          TypeOfCurrentPeriod
+## 11:                                                   CurrentFiscalYearStartDate
+## 12:                                                     CurrentFiscalYearEndDate
+## 13:                                                                     NetSales
+## 14:                                                              OperatingProfit
+## 15:                                                               OrdinaryProfit
+## 16:                                                                       Profit
+## 17:                                                             EarningsPerShare
+## 18:                                                                  TotalAssets
+## 19:                                                                       Equity
+## 20:                                                           EquityToAssetRatio
+## 21:                                                            BookValuePerShare
+## 22:                                             ResultDividendPerShare1stQuarter
+## 23:                                             ResultDividendPerShare2ndQuarter
+## 24:                                             ResultDividendPerShare3rdQuarter
+## 25:                                          ResultDividendPerShareFiscalYearEnd
+## 26:                                                 ResultDividendPerShareAnnual
+## 27:                                           ForecastDividendPerShare1stQuarter
+## 28:                                           ForecastDividendPerShare2ndQuarter
+## 29:                                           ForecastDividendPerShare3rdQuarter
+## 30:                                        ForecastDividendPerShareFiscalYearEnd
+## 31:                                               ForecastDividendPerShareAnnual
+## 32:                                                             ForecastNetSales
+## 33:                                                      ForecastOperatingProfit
+## 34:                                                       ForecastOrdinaryProfit
+## 35:                                                               ForecastProfit
+## 36:                                                     ForecastEarningsPerShare
+## 37:                ApplyingOfSpecificAccountingOfTheQuarterlyFinancialStatements
+## 38:                                                MaterialChangesInSubsidiaries
+## 39:                                  ChangesBasedOnRevisionsOfAccountingStandard
+## 40:                     ChangesOtherThanOnesBasedOnRevisionsOfAccountingStandard
+## 41:                                                 ChangesInAccountingEstimates
+## 42:                                                     RetrospectiveRestatement
+## 43: NumberOfIssuedAndOutstandingSharesAtTheEndOfFiscalYearIncludingTreasuryStock
+## 44:                                    NumberOfTreasuryStockAtTheEndOfFiscalYear
+## 45:                                                        AverageNumberOfShares
+##                                                                          feature
+##     unique_values
+##  1:         92955
+##  2:         87291
+##  3:          1202
+##  4:          4072
+##  5:          1225
+##  6:           235
+##  7:         15166
+##  8:            28
+##  9:           200
+## 10:             7
+## 11:           177
+## 12:           168
+## 13:         45871
+## 14:         18730
+## 15:         19879
+## 16:         17840
+## 17:         29196
+## 18:         55137
+## 19:         46656
+## 20:          1167
+## 21:         33061
+## 22:            56
+## 23:           292
+## 24:            52
+## 25:           455
+## 26:           482
+## 27:            35
+## 28:           255
+## 29:            50
+## 30:           569
+## 31:           625
+## 32:         13663
+## 33:          5961
+## 34:          6186
+## 35:          5610
+## 36:         24941
+## 37:             3
+## 38:             3
+## 39:             3
+## 40:             3
+## 41:             3
+## 42:             3
+## 43:         13995
+## 44:         41027
+## 45:         61515
+##     unique_values</code></pre>
+<pre class="r"><code>df_tmp2</code></pre>
+<pre><code>##                                                                          feature
+##  1:                                                             DisclosureNumber
+##  2:                                                                     DateCode
+##  3:                                                                         Date
+##  4:                                                               SecuritiesCode
+##  5:                                                                DisclosedDate
+##  6:                                                                DisclosedTime
+##  7:                                                            DisclosedUnixTime
+##  8:                                                               TypeOfDocument
+##  9:                                                         CurrentPeriodEndDate
+## 10:                                                          TypeOfCurrentPeriod
+## 11:                                                   CurrentFiscalYearStartDate
+## 12:                                                     CurrentFiscalYearEndDate
+## 13:                                                                     NetSales
+## 14:                                                              OperatingProfit
+## 15:                                                               OrdinaryProfit
+## 16:                                                                       Profit
+## 17:                                                             EarningsPerShare
+## 18:                                                                  TotalAssets
+## 19:                                                                       Equity
+## 20:                                                           EquityToAssetRatio
+## 21:                                                            BookValuePerShare
+## 22:                                             ResultDividendPerShare1stQuarter
+## 23:                                             ResultDividendPerShare2ndQuarter
+## 24:                                             ResultDividendPerShare3rdQuarter
+## 25:                                          ResultDividendPerShareFiscalYearEnd
+## 26:                                                 ResultDividendPerShareAnnual
+## 27:                                           ForecastDividendPerShare1stQuarter
+## 28:                                           ForecastDividendPerShare2ndQuarter
+## 29:                                           ForecastDividendPerShare3rdQuarter
+## 30:                                        ForecastDividendPerShareFiscalYearEnd
+## 31:                                               ForecastDividendPerShareAnnual
+## 32:                                                             ForecastNetSales
+## 33:                                                      ForecastOperatingProfit
+## 34:                                                       ForecastOrdinaryProfit
+## 35:                                                               ForecastProfit
+## 36:                                                     ForecastEarningsPerShare
+## 37:                ApplyingOfSpecificAccountingOfTheQuarterlyFinancialStatements
+## 38:                                                MaterialChangesInSubsidiaries
+## 39:                                  ChangesBasedOnRevisionsOfAccountingStandard
+## 40:                     ChangesOtherThanOnesBasedOnRevisionsOfAccountingStandard
+## 41:                                                 ChangesInAccountingEstimates
+## 42:                                                     RetrospectiveRestatement
+## 43: NumberOfIssuedAndOutstandingSharesAtTheEndOfFiscalYearIncludingTreasuryStock
+## 44:                                    NumberOfTreasuryStockAtTheEndOfFiscalYear
+## 45:                                                        AverageNumberOfShares
+##                                                                          feature
+##       NAs
+##  1:     2
+##  2:     2
+##  3:     0
+##  4:     2
+##  5:     2
+##  6:     2
+##  7:     2
+##  8:     2
+##  9:     2
+## 10:     2
+## 11:     2
+## 12:     2
+## 13: 17534
+## 14: 19530
+## 15: 17634
+## 16: 17587
+## 17: 18005
+## 18: 17525
+## 19: 17527
+## 20: 18229
+## 21: 57234
+## 22: 92363
+## 23: 40852
+## 24: 92645
+## 25: 73592
+## 26: 74077
+## 27: 92853
+## 28: 60225
+## 29: 92506
+## 30: 23126
+## 31: 24533
+## 32: 12588
+## 33: 14270
+## 34: 12793
+## 35: 11671
+## 36: 12994
+## 37: 85707
+## 38: 28452
+## 39: 18061
+## 40: 18061
+## 41: 18830
+## 42: 22560
+## 43: 18039
+## 44: 21513
+## 45: 18610
+##       NAs</code></pre>
+<pre class="r"><code>cat(&quot;nrow = &quot;, nrow(financials))</code></pre>
+<pre><code>## nrow =  92956</code></pre>
+<pre class="r"><code>df_tmp &lt;- df_tmp %&gt;% 
+  left_join(df_tmp2, by = &quot;feature&quot;) %&gt;% 
+  mutate(ColNo = row_number())
+df_tmp</code></pre>
+<pre><code>##                                                                          feature
+##  1:                                                             DisclosureNumber
+##  2:                                                                     DateCode
+##  3:                                                                         Date
+##  4:                                                               SecuritiesCode
+##  5:                                                                DisclosedDate
+##  6:                                                                DisclosedTime
+##  7:                                                            DisclosedUnixTime
+##  8:                                                               TypeOfDocument
+##  9:                                                         CurrentPeriodEndDate
+## 10:                                                          TypeOfCurrentPeriod
+## 11:                                                   CurrentFiscalYearStartDate
+## 12:                                                     CurrentFiscalYearEndDate
+## 13:                                                                     NetSales
+## 14:                                                              OperatingProfit
+## 15:                                                               OrdinaryProfit
+## 16:                                                                       Profit
+## 17:                                                             EarningsPerShare
+## 18:                                                                  TotalAssets
+## 19:                                                                       Equity
+## 20:                                                           EquityToAssetRatio
+## 21:                                                            BookValuePerShare
+## 22:                                             ResultDividendPerShare1stQuarter
+## 23:                                             ResultDividendPerShare2ndQuarter
+## 24:                                             ResultDividendPerShare3rdQuarter
+## 25:                                          ResultDividendPerShareFiscalYearEnd
+## 26:                                                 ResultDividendPerShareAnnual
+## 27:                                           ForecastDividendPerShare1stQuarter
+## 28:                                           ForecastDividendPerShare2ndQuarter
+## 29:                                           ForecastDividendPerShare3rdQuarter
+## 30:                                        ForecastDividendPerShareFiscalYearEnd
+## 31:                                               ForecastDividendPerShareAnnual
+## 32:                                                             ForecastNetSales
+## 33:                                                      ForecastOperatingProfit
+## 34:                                                       ForecastOrdinaryProfit
+## 35:                                                               ForecastProfit
+## 36:                                                     ForecastEarningsPerShare
+## 37:                ApplyingOfSpecificAccountingOfTheQuarterlyFinancialStatements
+## 38:                                                MaterialChangesInSubsidiaries
+## 39:                                  ChangesBasedOnRevisionsOfAccountingStandard
+## 40:                     ChangesOtherThanOnesBasedOnRevisionsOfAccountingStandard
+## 41:                                                 ChangesInAccountingEstimates
+## 42:                                                     RetrospectiveRestatement
+## 43: NumberOfIssuedAndOutstandingSharesAtTheEndOfFiscalYearIncludingTreasuryStock
+## 44:                                    NumberOfTreasuryStockAtTheEndOfFiscalYear
+## 45:                                                        AverageNumberOfShares
+##                                                                          feature
+##     unique_values   NAs ColNo
+##  1:         92955     2     1
+##  2:         87291     2     2
+##  3:          1202     0     3
+##  4:          4072     2     4
+##  5:          1225     2     5
+##  6:           235     2     6
+##  7:         15166     2     7
+##  8:            28     2     8
+##  9:           200     2     9
+## 10:             7     2    10
+## 11:           177     2    11
+## 12:           168     2    12
+## 13:         45871 17534    13
+## 14:         18730 19530    14
+## 15:         19879 17634    15
+## 16:         17840 17587    16
+## 17:         29196 18005    17
+## 18:         55137 17525    18
+## 19:         46656 17527    19
+## 20:          1167 18229    20
+## 21:         33061 57234    21
+## 22:            56 92363    22
+## 23:           292 40852    23
+## 24:            52 92645    24
+## 25:           455 73592    25
+## 26:           482 74077    26
+## 27:            35 92853    27
+## 28:           255 60225    28
+## 29:            50 92506    29
+## 30:           569 23126    30
+## 31:           625 24533    31
+## 32:         13663 12588    32
+## 33:          5961 14270    33
+## 34:          6186 12793    34
+## 35:          5610 11671    35
+## 36:         24941 12994    36
+## 37:             3 85707    37
+## 38:             3 28452    38
+## 39:             3 18061    39
+## 40:             3 18061    40
+## 41:             3 18830    41
+## 42:             3 22560    42
+## 43:         13995 18039    43
+## 44:         41027 21513    44
+## 45:         61515 18610    45
+##     unique_values   NAs ColNo</code></pre>
 </div>
 
 
