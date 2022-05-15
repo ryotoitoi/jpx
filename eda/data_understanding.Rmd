@@ -16,6 +16,10 @@ library(patchwork)
 library(lemon)
 library(lubridate)
 library(magick)
+
+#Choose your favorite color
+mycol = c("turquoise", "lightslateblue","lightskyblue", 
+          "chartreuse2", "palegreen2", "mistyrose2", "grey60", "hotpink1")
 ```
 
 # Data Files
@@ -279,13 +283,30 @@ df_comb %>% head(10)
 
 
 ```{r}
-financials %>% select(4, 5, 17, 36, 47)
-dt_comb <- 
-  left_join(dt_comb, financials %>% select(4, 5, 17, 36, 47) %>% 
-            rename(Date = DisclosedDate), by = c("Date", "SecuritiesCode"))
-dt_comb[is.na(disclosed), disclosed := 0]
+df_stock_list_count <- stock_list %>% 
+  count(NewMarketSegment) %>% 
+  arrange(desc(n)) %>% 
+  rename(stock_list = n)
 
-dt_comb %>% head(5)
+df_stock_list_count
+
+df_stock_price_count <- df_comb %>% 
+  group_by(NewMarketSegment, SecuritiesCode) %>% 
+  count() %>% 
+  group_by(NewMarketSegment) %>% 
+  count() %>% 
+  rename(stock_price = n)
+
+df_stock_price_count
+
+df_tmp <- left_join(df_stock_list_count, df_stock_price_count, by = "NewMarketSegment")
+df_tmp %>%
+  mutate(rate = round(stock_price/stock_list, digits = 2))
+```
+- It appears that about 90% of the current prime market and 20% of remaining market issues are covered.
+
+```{r}
+
 ```
 
 
