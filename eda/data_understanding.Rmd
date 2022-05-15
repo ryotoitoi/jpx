@@ -1,0 +1,330 @@
+---
+title: "Untitled"
+author: "ryotoitoi"
+date: '2022-05-14'
+output: html_document
+---
+
+# Library
+
+```{r}
+library(tidyverse)
+library(purrr)
+library(data.table)
+library(scales)
+library(patchwork)
+library(lemon)
+library(lubridate)
+library(magick)
+
+#Choose your favorite color
+mycol = c("turquoise", "lightslateblue","lightskyblue", 
+          "chartreuse2", "palegreen2", "mistyrose2", "grey60", "hotpink1")
+```
+
+# Data Files
+
+-   There seems to be "stock_list" file on the level above the training data.
+-   "stock_file" probably contains information on stocks in the Tokyo market.
+
+```{r}
+data_path = "../"
+train_path = paste0(data_path, "train_files/")
+cat("list of the top directory\n")
+list.files(data_path, full.names = T)
+
+cat("training data\n")
+list.files(train_path, full.names = T)
+```
+
+```{r}
+stock_list <- fread(
+  paste0(data_path, "stock_list.csv"),na.strings = c("","NULL")
+  )
+stock_list %>% head()
+stock_list %>% tail()
+
+cat(paste0(train_path, "stock_prices.csv"))
+stock_price <- fread(
+  paste0(train_path, "stock_prices.csv"), na.strings = c("", "NULL")
+)
+stock_price %>% head()
+
+financials <- fread(
+  paste0(train_path, "financials.csv"), na.strings = c("", "NULL")
+)
+financials %>% head()
+```
+
+# stock_list
+
+**This is assumed to be information on all issues in the Tokyo market.**
+
+I should check the columns name.
+
+```{r}
+stock_list %>% names()
+stock_list %>% str()
+```
+
+```{r}
+st1 <- names(stock_list)[str_detect(names(stock_list), "^[0-9]")] # detect col names which start with figure
+print(st1)
+st2 <- c("SectorCode_33", "SectorName_33", "SectorCode_17", "SectorName_17")
+setnames(stock_list, st1, st2) # replace col name st1 to st2
+
+
+st1 <- names(stock_list)[str_detect(names(stock_list), "/")] %>% 
+  str_replace_all("/", "_")
+
+setnames(stock_list, names(stock_list)[str_detect(names(stock_list), "/")], st1)
+
+glimpse(stock_list)
+```
+
+```{r}
+?glimpse
+```
+
+## Generate the list of unique_values
+
+```{r}
+sapply(stock_list, function(x){length(unique(x))}) %>% 
+  data.table(colname = names(.), unique_values = .)
+```
+
+**A brief comparsion of old and new market segments.**
+
+```{r}
+stock_list[, n:= 1:.N, by= Section_Products]
+stock_list
+stock_list[n ==1] %>% 
+  select(Section_Products, NewMarketSegment) 
+```
+
+-   The new segments(4/4/2022\~) seems simpler and easier to understand.
+
+# Stock Price
+
+```{r}
+glimpse(stock_price)
+```
+
+-   This appears to be a pure record of price movement.
+-   What is "target" ??
+
+**How many stocks should we forecast?**
+
+```{r}
+stock_price %>% 
+  select(SecuritiesCode) %>% 
+  unique() %>% 
+  nrow()
+```
+
+-   The forecast covers 2,000 stocks out of 4,417 stocks.
+
+## Date period
+
+```{r}
+stock_price %>% 
+  mutate(., Date = as.IDate(Date))
+
+range(stock_price$Date)
+```
+
+-   All data are from the market classification (Section_Products).
+
+# financials
+
+```{r}
+glimpse(financials)
+```
+
+**Convert some strings into numerical.** **Corrects time data to iTime**
+
+```{r}
+cols <- names(financials)[c(13:36, 43:45)]
+financials[, (cols) := lapply(.SD, as.numeric), .SDcols = cols] # .SD is "Self-reference of the Data"
+financials$DisclosedTime <- as.ITime(financials$DisclosedTime)
+```
+
+```{r}
+glimpse(financials)
+```
+
+# Check for unique value and NA.
+
+```{r}
+df_tmp <- financials %>% 
+  sapply(function(x){length(unique(x))}) %>% 
+  data.table(feature = names(.), unique_values = .)
+
+df_tmp2 <- colSums(sapply(financials, is.na)) %>% 
+  data.table(feature = names(.), NAs = .)
+
+df_tmp
+df_tmp2
+
+cat("nrow = ", nrow(financials))
+
+df_tmp <- df_tmp %>% 
+  left_join(df_tmp2, by = "feature") %>% 
+  mutate(ColNo = row_number())
+df_tmp
+view(df_tmp)
+```
+
+**The following may be paticularly relevant to stock price movements in this context.**
+
+1.  EaringsPerShare:一株当たり利益
+2.  ForecastEarningsPerShare:予測一株当たり利益
+3.  DisclosedDate:開示日
+
+-   If the expected earings per share is higher than the previous period, the stock price may rise in the future. Unfortunately, there seems to be a lot of NA.
+-   Price movements are expected to be large on the disclosure date.
+
+**The stock market closes at 3:00 p.m.**
+We believe that earnings disclosure after 3:00 p.m. has a greater impact on price movements the next day than  on that day.
+For this reason, I will move the disclosure date by one day for earnings discoosures after 3:00 p.m.
+
+```{r}
+financials %>% 
+  mutate(
+    DisclosedDate = if_else(
+      DisclosedTime>=as.ITime("15:00:00"), DisclosedDate + 1, DisclosedDate
+      )
+    )
+```
+
+**rename columns**
+```{r}
+financials %>% 
+  setnames(names(financials)[43], "NumberOfIssued")
+financials %>% names()
+```
+
+**Consider missing value completion for ForecastEarningsPerShare.**
+I believe earnings per share can be obtained by dividing earnings by the number of shares outstanding.
+
+```{r}
+financials <- financials %>% 
+  mutate(ForecastEarningsPerShare2 = round(ForecastProfit / NumberOfIssued ,  digits = 1))
+
+financials %>% 
+  names()
+```
+
+**Check to see if the value is available.**
+```{r}
+financials %>% 
+  select(ForecastEarningsPerShare, ForecastEarningsPerShare2) %>% 
+  head(20)
+```
+```{r}
+financials %>% 
+  filter(!is.na(ForecastEarningsPerShare2) & is.na(ForecastEarningsPerShare)) %>% 
+  nrow()
+```
+
+- 846 cases could be completed. It is not so much, but I will interpolate.
+
+```{r}
+financials <- financials %>%
+  mutate(
+    ForecastEarningsPerShare = if_else(is.na(ForecastEarningsPerShare),
+                                       ForecastEarningsPerShare2,
+                                       ForecastEarningsPerShare)
+  )
+
+financials %>% 
+  filter(!is.na(ForecastEarningsPerShare2) & is.na(ForecastEarningsPerShare)) %>% 
+  nrow()
+```
+
+**Create Disclosed(1 or 0) when I combine them later.**
+```{r}
+financials <- financials %>% 
+  mutate(disclosed = 1)
+financials %>% select(disclosed)
+```
+
+
+# Combining Data Sets
+Let's combine the stock price data set with stock information and financial performance information.
+
+```{r}
+stock_list
+
+df_comb <- stock_price %>% 
+  left_join(stock_list %>% select(1,3:9), by = "SecuritiesCode") # conbine stock_price with stock_list
+```
+
+```{r}
+df_comb <- df_comb %>% 
+  left_join(
+  financials %>% select(DisclosedDate, SecuritiesCode, EarningsPerShare, ForecastEarningsPerShare, disclosed) %>% rename(Date = DisclosedDate), 
+  by = c("Date", "SecuritiesCode")
+  )
+
+df_comb
+
+df_comb <- df_comb %>% 
+  mutate(
+    disclosed = if_else(
+    is.na(disclosed), 
+    0,
+    disclosed
+    )
+  )
+
+df_comb %>% head(10)
+```
+
+
+```{r}
+df_stock_list_count <- stock_list %>% 
+  count(NewMarketSegment) %>% 
+  arrange(desc(n)) %>% 
+  rename(stock_list = n)
+
+df_stock_list_count
+
+df_stock_price_count <- df_comb %>% 
+  group_by(NewMarketSegment, SecuritiesCode) %>% 
+  count() %>% 
+  group_by(NewMarketSegment) %>% 
+  count() %>% 
+  rename(stock_price = n)
+
+df_stock_price_count
+
+df_tmp <- left_join(df_stock_list_count, df_stock_price_count, by = "NewMarketSegment")
+df_tmp %>%
+  mutate(rate = round(stock_price/stock_list, digits = 2))
+```
+- It appears that about 90% of the current prime market and 20% of remaining market issues are covered.
+
+```{r}
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
